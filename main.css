@@ -2,7 +2,7 @@ body {
   overflow: hidden;
 }
 
-.gpt_message td  {
+.ai_message td  {
     margin-left: 30px;
     margin-bottom: 20px;
     margin-top: 20px;
