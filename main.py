@@ -4,6 +4,7 @@ import copy
 from taipy.gui import Gui, State, notify
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
+from ai_foundry_evaluation import eval_run
 
 from dotenv import load_dotenv
 
@@ -79,6 +80,10 @@ def send_message(state: State) -> None:
     """
     notify(state, "info", "Sending message...")
     answer = update_context(state)
+
+    # Run evaluation
+    eval_run(query=state.current_user_message, response=answer)
+
     conv = state.conversation._dict.copy()
     conv["Conversation"] += [state.current_user_message, answer]
     state.current_user_message = ""
@@ -189,14 +194,13 @@ if __name__ == "__main__":
 
     try:
         endpoint = os.environ["AZURE_AI_CHAT_ENDPOINT"]
-        key = os.environ["AZURE_AI_CHAT_KEY"]
+        api_key = os.environ["AZURE_AI_CHAT_KEY"]
         deployment = os.environ["AZURE_AI_CHAT_DEPLOYMENT_NAME"]
     except KeyError:
         print("Missing environment variable 'AZURE_AI_CHAT_ENDPOINT' or 'AZURE_AI_CHAT_KEY' or 'AZURE_AI_CHAT_DEPLOYMENT_NAME'")
         print("Set them before running this sample.")
         exit()
 
-
-    client = ChatCompletionsClient(endpoint=endpoint, credential=AzureKeyCredential(key))
+    client = ChatCompletionsClient(endpoint=endpoint, credential=AzureKeyCredential(api_key))
 
     Gui(page).run(debug=True, dark_mode=True, use_reloader=True, title="💬 Taipy Chat")
