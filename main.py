@@ -5,11 +5,15 @@ from taipy.gui import Gui, State, notify
 from azure.ai.inference import ChatCompletionsClient
 from azure.core.credentials import AzureKeyCredential
 from ai_foundry_evaluation import eval_run
+from ai_foundry_agent import agent_run, create_project_client, create_agent_thread
 
 from dotenv import load_dotenv
+load_dotenv()
 
-client = None
-deployment = None
+
+agent_id = None
+thread_id = None
+project_client = create_project_client()
 context = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.\n\nHuman: Hello, who are you?\nAI: I am an AI created by OpenAI. How can I help you today? "
 conversation = {
     "Conversation": ["Who are you?", "Hi! I am an AI assistant. How can I help you today?"]
@@ -27,34 +31,12 @@ def on_init(state: State) -> None:
     Args:
         - state: The current state of the app.
     """
-    state.context = "The following is a conversation with an AI assistant. The assistant is helpful, creative, clever, and very friendly.\n\nHuman: Hello, who are you?\nAI: I am an AI created by OpenAI. How can I help you today? "
+    state.context = context
     state.conversation = copy.copy(conversation)
     state.current_user_message = ""
     state.past_conversations = []
     state.selected_conv = None
     state.selected_row = [1]
-
-
-def request(state: State, prompt: str) -> str:
-    """
-    Send a prompt and return the response.
-
-    Args:
-        - state: The current state of the app.
-        - prompt: The prompt to send to the API.
-
-    Returns:
-        The response from the API.
-    """
-    response = client.complete(messages=[
-            {
-                "role": "user",
-                "content": f"{prompt}",
-            }
-        ],
-        model=deployment,
-    )
-    return response.choices[0].message.content
 
 
 def update_context(state: State) -> None:
@@ -65,7 +47,7 @@ def update_context(state: State) -> None:
         - state: The current state of the app.
     """
     state.context += f"Human: \n {state.current_user_message}\n\n AI:"
-    answer = request(state, state.context).replace("\n", "")
+    answer = agent_run(project_client, agent_id=agent_id, thread_id=thread_id, query=state.current_user_message)
     state.context += answer
     state.selected_row = [len(state.conversation["Conversation"]) + 1]
     return answer
@@ -190,17 +172,5 @@ page = """
 """
 
 if __name__ == "__main__":
-    load_dotenv()
-
-    try:
-        endpoint = os.environ["AZURE_AI_CHAT_ENDPOINT"]
-        api_key = os.environ["AZURE_AI_CHAT_KEY"]
-        deployment = os.environ["AZURE_AI_CHAT_DEPLOYMENT_NAME"]
-    except KeyError:
-        print("Missing environment variable 'AZURE_AI_CHAT_ENDPOINT' or 'AZURE_AI_CHAT_KEY' or 'AZURE_AI_CHAT_DEPLOYMENT_NAME'")
-        print("Set them before running this sample.")
-        exit()
-
-    client = ChatCompletionsClient(endpoint=endpoint, credential=AzureKeyCredential(api_key))
-
+    agent_id, thread_id = create_agent_thread(project_client)
     Gui(page).run(debug=True, dark_mode=True, use_reloader=True, title="💬 Taipy Chat")
